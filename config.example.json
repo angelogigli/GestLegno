@@ -1,0 +1,21 @@
+{
+  "port": 3010,
+  "host": "127.0.0.1",
+  "allowWrite": true,
+  "accesso": {
+    "attivo": true,
+    "utenti": {
+      "admin": "CAMBIA_PASSWORD"
+    }
+  },
+  "db": {
+    "auth": "sql",
+    "server": "localhost",
+    "instanceName": "",
+    "port": 1433,
+    "database": "LEGNOEURO",
+    "odbcDriver": "",
+    "user": "gestlegno_web",
+    "password": "CAMBIA_PASSWORD"
+  }
+}

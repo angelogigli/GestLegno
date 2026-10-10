@@ -1,0 +1,13 @@
+{
+  "name": "gestlegno-web",
+  "version": "0.1.1",
+  "private": true,
+  "description": "Gestione richieste profili su database LEGNOEURO",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": {
+    "express": "^4.21.2",
+    "mssql": "^11.0.1",
+    "msnodesqlv8": "^4.5.0 || ^5.0.0"
+  }
+}

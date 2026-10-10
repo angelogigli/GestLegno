@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Environment and config with secrets
+config.json
+
+# Export directory
+export/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Temp files
+*.tmp
+*.bak

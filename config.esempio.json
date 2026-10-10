@@ -1,0 +1,22 @@
+{
+  "port": 3010,
+  "host": "127.0.0.1",
+  "allowWrite": false,
+  "accesso": {
+    "attivo": true,
+    "utenti": {
+      "cliente": "CAMBIA-QUESTA-PASSWORD",
+      "angelo": "CAMBIA-QUESTA-PASSWORD"
+    }
+  },
+  "db": {
+    "auth": "sql",
+    "server": "localhost",
+    "instanceName": "",
+    "port": 1433,
+    "database": "LEGNOEURO_TEST",
+    "odbcDriver": "",
+    "user": "gestlegno_web",
+    "password": "CAMBIA-QUESTA-PASSWORD"
+  }
+}

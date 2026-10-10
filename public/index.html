@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GestLegno Web · Profili</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <h1>Ordini Profili</h1>
+      <nav class="tabs" role="tablist">
+        <button type="button" role="tab" data-tab="archivio" class="tab active">Archivio</button>
+        <button type="button" role="tab" data-tab="nuova" class="tab">Nuova richiesta</button>
+      </nav>
+    </div>
+    <span class="db" id="dbInfo">Connessione…</span>
+  </header>
+
+  <div id="dbError" class="alert" hidden></div>
+
+  <!-- ================= ARCHIVIO ================= -->
+  <main id="tab-archivio">
+    <section class="panel">
+      <div class="panel-h">
+        <h2>Richieste clienti</h2>
+        <div class="filters">
+          <label for="fAnno">Anno<select id="fAnno"></select></label>
+          <label for="fTesto">Cerca<input id="fTesto" type="search" placeholder="Cliente, riferimento o n° ordine"></label>
+          <label class="check" for="fProp"><input id="fProp" type="checkbox">Solo con proposta salvata</label>
+          <button type="button" id="btnExport" title="Salva un campione dell'archivio in webapp\export per l'analisi">Esporta campione</button>
+        </div>
+      </div>
+      <div class="split">
+        <div class="list-wrap">
+          <table class="list">
+            <thead><tr><th>Data</th><th class="n">N°</th><th>Cliente</th><th class="n">Righe</th><th class="n">Pz</th><th>Stato</th></tr></thead>
+            <tbody id="archRows"></tbody>
+          </table>
+          <div id="archEmpty" class="empty" hidden>Nessuna richiesta trovata.</div>
+          <div id="archCount" class="foot"></div>
+        </div>
+        <div class="detail" id="archDetail">
+          <div class="empty">Seleziona una richiesta per vedere righe, proposta e impegni.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= NUOVA RICHIESTA ================= -->
+  <main id="tab-nuova" hidden>
+    <section class="panel">
+      <div class="panel-h"><h2><span class="step">1</span>Anagrafica ordine</h2></div>
+      <div class="panel-b head-grid">
+        <div>
+          <div id="cliBox"></div>
+          <div class="rif-grid">
+            <label for="rif0">Riferimento<input id="rif0" type="text" maxlength="100"></label>
+            <label for="rif1">Riferimento 1<input id="rif1" type="text" maxlength="100"></label>
+            <label for="rif2">Riferimento 2<input id="rif2" type="text" maxlength="100"></label>
+          </div>
+        </div>
+        <div class="col-gap">
+          <div class="meta-grid">
+            <label for="ordData">Data<input id="ordData" type="date"></label>
+            <label for="ordNum">Ordine n°<input id="ordNum" type="number" class="num"></label>
+            <label for="ordAnno">Anno<input id="ordAnno" type="number" class="num"></label>
+          </div>
+          <label class="check" for="ordOrdinario"><input id="ordOrdinario" type="checkbox" checked>Ordine ordinario</label>
+        </div>
+      </div>
+    </section>
+
+    <div class="work">
+      <section class="panel">
+        <div class="panel-h"><h2><span class="step">2</span>Richiesta cliente</h2><span class="db" id="rowsCount"></span></div>
+        <div id="entryBox"></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Rif</th><th>Profilo</th><th class="n">Lung m</th><th class="n">Pz</th><th class="n">Totale m</th><th>Copertura</th><th></th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <div id="emptyRows" class="empty">Nessuna riga. Scegli profilo e sezione, inserisci lunghezza e pezzi.</div>
+        <div class="totals">
+          <div class="tot"><span>Righe</span><b id="tRighe">0</b></div>
+          <div class="tot"><span>Pezzi</span><b id="tPz">0</b></div>
+          <div class="tot"><span>Metri lineari</span><b id="tMl">0</b></div>
+        </div>
+        <div class="actions">
+          <button id="btnNuovo" type="button">Nuova richiesta</button>
+          <button id="btnSalva" type="button" class="primary">Salva richiesta</button>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <div class="panel-h"><h2 class="stock-h">Magazzino sezione<small id="stockTitle">Scegli una sezione</small></h2></div>
+        <div class="panel-b">
+          <div id="stockBars" class="bars"></div>
+          <div class="legend">
+            <span><i class="lg-ok"></i>lunghezza esatta</span>
+            <span><i class="lg-warn"></i>più lunga, da tagliare</span>
+            <span><i class="lg-off"></i>troppo corta</span>
+            <span>clic su una lunghezza per escluderla</span>
+          </div>
+          <div class="stock-sum"><span>Disponibile</span><span><b id="stockPz">0</b> pz · <b id="stockMl">0</b> m</span></div>
+        </div>
+      </aside>
+    </div>
+
+    <section class="panel" id="solPanel">
+      <div class="panel-h">
+        <h2><span class="step">3</span>Soluzione proposta</h2>
+        <div class="filters">
+          <label for="pSfridoM" title="Sfrido massimo accettato per barra, in metri">Sfrido max m<input id="pSfridoM" type="number" class="num" step="0.05" min="0" value="0.25"></label>
+          <label for="pSfridoP" title="In alternativa: sfrido massimo in percentuale della barra">o max %<input id="pSfridoP" type="number" class="num" step="1" min="0" value="15"></label>
+          <label for="pTaglio" title="Spessore della lama: lunghezza persa a ogni taglio">Lama mm<input id="pTaglio" type="number" class="num" step="1" min="0" value="0"></label>
+          <label for="pMaxPz" title="Quanti pezzi al massimo si ricavano da una barra">Pezzi/barra<input id="pMaxPz" type="number" class="num" step="1" min="1" max="10" value="4"></label>
+          <label for="pPrior" title="Come scegliere tra barre che rispettano la soglia di sfrido">Priorità<select id="pPrior">
+            <option value="corti" selected>Pezzi più corti</option>
+            <option value="sfrido">Meno sfrido</option>
+            <option value="disponibilita">Lunghezze più disponibili</option></select></label>
+          <label for="pToll" title="Quanto sfrido in più per barra si accetta per usare una barra più corta (o più disponibile)">Toll. m<input id="pToll" type="number" class="num" step="0.05" min="0" value="0.10"></label>
+          <label class="check" for="pEquiv"><input id="pEquiv" type="checkbox" checked>Sezioni equivalenti</label>
+          <label class="check" for="pFuori"><input id="pFuori" type="checkbox" checked>Accetta sfrido oltre soglia</label>
+          <button type="button" id="btnElabora" class="primary">Elabora</button>
+          <button type="button" id="btnStampa" title="Stampa il report della proposta">Stampa report</button>
+        </div>
+      </div>
+      <div id="exclBox" class="excl" hidden></div>
+      <div id="solBox"><div class="empty">Compila la richiesta e premi Elabora: l'app propone da quali barre di magazzino tagliare ogni pezzo.</div></div>
+    </section>
+
+    <section class="panel" id="sqlPanel" hidden>
+      <div class="panel-h"><h2><span class="step">4</span>Salvataggio</h2><button id="btnCopy" type="button">Copia SQL</button></div>
+      <div class="panel-b">
+        <p id="saveMsg" class="save-msg"></p>
+        <pre class="sql" id="sqlOut"></pre>
+      </div>
+    </section>
+  </main>
+</div>
+<div id="toast" class="toast" hidden></div>
+<script src="ottimizzatore.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
