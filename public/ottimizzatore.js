@@ -78,12 +78,14 @@
       fuoriSoglia: true, maxNodi: 6000, priorita: 'corti', tolleranzaM: 0.10,
       tolleranzaCortaM: 0.02,    // accetta pezzi fino a 2cm più lunghi del resto
       penalizzaSfridoAlto: true, // evita barre con sfrido alto se ci sono alternative
-      sfridoAltoPenalizzaM: 0.40 // considera "alto" sfrido >= 40cm
+      sfridoAltoPenalizzaM: 0.40, // considera "alto" sfrido >= 40cm
+      usaBarreEsatte: true       // NUOVO: preferisci barre con lunghezza uguale o quasi al pezzo
     }, input.param || {});
     const taglio = Math.max(0, Math.round(p.taglioMm));
     const sogliaMm = MM(p.sfridoMaxM);
     const tolCortaMm = MM(p.tolleranzaCortaM);
     const sfridoAltoMm = MM(p.sfridoAltoPenalizzaM);
+    const tolEsattaMm = 50; // tolleranza per considerare una barra "esatta" (5cm)
     // domanda: lunghezze distinte
     const mapD = new Map();
     for (const r of input.righe) {
@@ -99,6 +101,41 @@
     const esclusi = new Set();            // indici di domanda che nessuna barra può soddisfare
     let fuoriSoglia = 0, giri = 0;
 
+    // FASE 1: Usa prima le barre con lunghezza esatta o quasi (sfrido <= 5cm)
+    if (p.usaBarreEsatte) {
+      for (const it of items) {
+        if (it.rem <= 0) continue;
+        // Cerca barre con lunghezza uguale o leggermente maggiore (max 5cm di sfrido)
+        const barreEsatte = stock.filter(s =>
+          !s.alt &&
+          s.disp - s.usati > 0 &&
+          s.L >= it.len &&
+          s.L <= it.len + tolEsattaMm
+        ).sort((a, b) => a.L - b.L); // preferisci la più corta
+
+        for (const s of barreEsatte) {
+          const disponibili = s.disp - s.usati;
+          const daUsare = Math.min(disponibili, it.rem);
+          if (daUsare <= 0) continue;
+
+          // Assegna queste barre
+          it.rem -= daUsare;
+          s.usati += daUsare;
+          const sfrido = s.L - it.len;
+          const chiave = `1x${it.len}`;
+          const sc = s.schemi.get(chiave) || {
+            n: 0, sfrido, fuoriSoglia: false,
+            pezzi: [{ lung: M(it.len), c: 1, lettera: it.lettera }]
+          };
+          sc.n += daUsare;
+          s.schemi.set(chiave, sc);
+
+          if (it.rem <= 0) break;
+        }
+      }
+    }
+
+    // FASE 2: Algoritmo combinatorio per i pezzi rimanenti
     while (giri++ < 5000) {
       const attivi = items.map((it, i) => ({ it, i })).filter(x => x.it.rem > 0 && !esclusi.has(x.i));
       if (!attivi.length) break;
