@@ -120,14 +120,14 @@ async function openRichiesta(id) {
     </div>
     <div class="sec"><h4>Richiesta cliente<small>BIT_RichProfDett · ${d.righe.length} righe · totale ${num(tot)}</small></h4>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>Rif</th><th>Sezione</th><th>Profilo</th><th class="n">Lung</th><th class="n">Pz</th><th class="n">Da</th><th class="n">A</th><th class="n">Totale</th></tr></thead>
+        <thead><tr><th>Rif</th><th>Sezione</th><th>Essenza</th><th class="n">Lung</th><th class="n">Pz</th><th class="n">Da</th><th class="n">A</th><th class="n">Totale</th></tr></thead>
         <tbody>${d.righe.map((r, i) => `<tr><td><span class="rif">${letteraArchivio(d, r)}</span></td><td><b>${esc(r.vdescr || r.vcod)}</b></td>
           <td class="muted">${esc(r.adescr)}</td><td class="n">${num(r.lung)}</td><td class="n">${num(r.pz, 0)}</td>
           <td class="n">${num(r.da)}</td><td class="n">${num(r.a)}</td><td class="n">${num(r.lung * r.pz)}</td></tr>`).join('')}</tbody>
       </table></div></div>
     ${vecchiaProposta(d)}
     ${sec('Impegni di magazzino', 'BIT_PROFILI_impegni', d.impegni, ['vdescr', 'BITPRIM_BITPR_Lung', 'BITPRIM_BITPR_PZ_IMP', 'BITPRIM_MGVR_ID_ALT', 'BITPRIM_BITPR_PZ_IMP_ALT', 'BITPRIM_BITPR_ID'])}
-    ${sec('Profili di magazzino usati', 'BIT_PROFILI richiamati da proposta e impegni', d.profili, ['BITPR_ID', 'vdescr', 'BITPR_Lung', 'BITPR_PZ', 'BITPR_PZ_EVA', 'BITPR_PZIMPEGNATI', 'BITPR_PROT'])}
+    ${sec('Barre di magazzino usate', 'BIT_PROFILI richiamati da proposta e impegni', d.profili, ['BITPR_ID', 'vdescr', 'BITPR_Lung', 'BITPR_PZ', 'BITPR_PZ_EVA', 'BITPR_PZIMPEGNATI', 'BITPR_PROT'])}
     ${sec('Palmare · testata', 'BITPLA_PalmA', d.palmA)}
     ${sec('Palmare · righe', 'BITPLA_PalmB', d.palmB)}
     ${sec('Errori in preparazione', 'BITPLA_Errori', d.errori)}
@@ -149,7 +149,7 @@ $('btnExport').onclick = async () => {
 /* ================= NUOVA RICHIESTA ================= */
 const N = {
   ready: false, allowWrite: false, cliente: null, cliQuery: '', cliOpen: false, cliIdx: 0, cliList: [],
-  articoli: [], varianti: {}, stock: {}, sel: { art: null, mgvr: null },
+  articoli: [], varianti: {}, stock: {}, sel: { art: null, art2: null, mgvr: null }, // art2 = essenza secondaria
   righe: [], focusRow: null, editId: null, seq: 1
 };
 const varById = id => { for (const [art, list] of Object.entries(N.varianti)) { const v = list.find(x => x.id === id); if (v) return { ...v, art: +art }; } return null; };
@@ -233,14 +233,16 @@ function renderEntry() {
   const vars = N.varianti[N.sel.art] || [];
   const editing = N.editId != null ? N.righe.find(r => r.id === N.editId) : null;
   box.innerHTML = `<div class="panel-b"><div class="entry">
-    <label for="inArt">Profilo<select id="inArt">${N.articoli.map(a => `<option value="${a.id}"${a.id === N.sel.art ? ' selected' : ''}>${esc(a.descr)}</option>`).join('')}</select></label>
+    <label for="inArt">Essenza<select id="inArt">${N.articoli.map(a => `<option value="${a.id}"${a.id === N.sel.art ? ' selected' : ''}>${esc(a.descr)}</option>`).join('')}</select></label>
+    <label for="inArt2">Essenza second.<select id="inArt2"><option value="">— Nessuna —</option>${N.articoli.map(a => `<option value="${a.id}"${a.id === N.sel.art2 ? ' selected' : ''}>${esc(a.descr)}</option>`).join('')}</select></label>
     <label for="inVar">Sezione<select id="inVar">${vars.map(v => `<option value="${v.id}"${v.id === N.sel.mgvr ? ' selected' : ''}>${esc(sezLabel(v))}</option>`).join('')}</select></label>
     <label for="inLung">Lung m<input id="inLung" type="number" class="num" min="0" step="any" value="${editing ? editing.lung : ''}"></label>
     <label for="inPz">Pz<input id="inPz" type="number" class="num" min="1" step="1" value="${editing ? editing.pz : ''}"></label>
     <div class="btn-cell" style="display:flex;gap:6px"><button id="btnIns" type="button" class="primary">${editing ? 'Aggiorna' : 'Inserisci'}</button>
       ${editing ? '<button id="btnAnn" type="button">Annulla</button>' : ''}</div>
-  </div><p class="hint">Lunghezza in metri (es. 2,45), come nel gestionale. Invio su Pz inserisce la riga; stessa sezione e lunghezza sommano i pezzi.</p></div>`;
+  </div><p class="hint">Lunghezza in metri (es. 2,45). Essenza secondaria: usata se la principale non ha disponibilità.</p></div>`;
   $('inArt').onchange = async e => { N.sel.art = +e.target.value; await loadVarianti(N.sel.art); renderEntry(); renderStock(); };
+  $('inArt2').onchange = e => { N.sel.art2 = e.target.value ? +e.target.value : null; };
   $('inVar').onchange = e => { N.sel.mgvr = +e.target.value; renderStock(); };
   $('inLung').oninput = renderStock;
   $('inLung').onkeydown = e => { if (e.key === 'Enter') $('inPz').focus(); };
@@ -338,7 +340,7 @@ async function renderStock() {
     const cls = !L ? '' : s.lung === L ? 'exact' : s.lung > L ? 'cut' : '';
     const ex = N.esclusi && N.esclusi.has(kEscl(v.id, s.lung)) ? ' excluded' : '';
     return `<div class="bar ${cls}${ex}" data-lung="${s.lung}" title="${ex ? 'Esclusa: clic per ripristinare' : 'Clic per escludere dal calcolo'}"><span class="len">${num(s.lung)}</span><span class="track"><span class="fill" style="width:${s.pz / max * 100}%"></span></span><span class="pz">${num(s.pz, 0)}</span></div>`;
-  }).join('') : '<div class="empty">Nessun profilo disponibile per questa sezione.</div>';
+  }).join('') : '<div class="empty">Nessuna essenza disponibile per questa sezione.</div>';
   $('stockPz').textContent = num(st.reduce((s, x) => s + x.pz, 0), 0);
   $('stockMl').textContent = num(st.reduce((s, x) => s + x.lung * x.pz, 0));
   renderRows();
@@ -451,31 +453,61 @@ async function elabora() {
   if (!N.righe.length) { toast('Inserisci almeno una riga'); return; }
   const b = $('btnElabora'); b.disabled = true; b.textContent = 'Elaborazione…';
   try {
-    const param = parametri(), equiv = false; // mai usare sezioni equivalenti
+    const param = parametri();
     const by = {};
     N.righe.forEach(r => (by[r.mgvr] = by[r.mgvr] || []).push(r));
     const gruppi = [];
+    const gruppiSecondari = []; // per essenza secondaria
+
     for (const [mgvrS, rr] of Object.entries(by)) {
       const mgvr = +mgvrS;
+      const v = varById(mgvr);
+      const artPrimario = v ? v.art : null;
+
+      // Stock essenza principale
       const stock = (await loadStock(mgvr)).map(s => ({ mgvr, lung: s.lung, pz: s.pz, alt: false }));
-      if (equiv) {
-        if (!N.equiv[mgvr]) N.equiv[mgvr] = await api('/api/equivalenti?mgvr=' + mgvr);
-        for (const e of N.equiv[mgvr]) (await loadStock(e.id)).forEach(s => stock.push({ mgvr: e.id, lung: s.lung, pz: s.pz, alt: true, descr: e.adescr }));
-      }
-      // ordine già impegnato: i suoi pezzi impegnati tornano disponibili per questa elaborazione
+
+      // ordine già impegnato: i suoi pezzi impegnati tornano disponibili
       for (const im of (N.origine?.impegni || [])) {
-        const v = im.BITPRIM_BITPR_MGVR_ID, l = +im.BITPRIM_BITPR_Lung, q = +im.BITPRIM_BITPR_PZ_IMP || 0;
-        const tgt = stock.find(s => s.mgvr === v && Math.abs(s.lung - l) < 1e-6);
+        const vImp = im.BITPRIM_BITPR_MGVR_ID, l = +im.BITPRIM_BITPR_Lung, q = +im.BITPRIM_BITPR_PZ_IMP || 0;
+        const tgt = stock.find(s => s.mgvr === vImp && Math.abs(s.lung - l) < 1e-6);
         if (tgt) tgt.pz += q;
-        else if (v === mgvr || stock.some(s => s.mgvr === v)) stock.push({ mgvr: v, lung: l, pz: q, alt: v !== mgvr, descr: stock.find(s => s.mgvr === v)?.descr });
+        else if (vImp === mgvr) stock.push({ mgvr: vImp, lung: l, pz: q, alt: false });
       }
+
       const stockUsabile = stock.filter(s => !N.esclusi.has(kEscl(s.mgvr, s.lung)));
-      const ris = Ottimizzatore.ottimizza({ righe: rr.map(r => ({ key: r.id, lung: r.lung, pz: r.pz, lettera: r.rif })), stock: stockUsabile, param });
-      gruppi.push({ mgvr, v: varById(mgvr), ris });
+      const righeOtt = rr.map(r => ({ key: r.id, lung: r.lung, pz: r.pz, lettera: r.rif }));
+      const ris = Ottimizzatore.ottimizza({ righe: righeOtt, stock: stockUsabile, param });
+      gruppi.push({ mgvr, v, artId: artPrimario, ris, essenza: 'primaria' });
+
+      // Se ci sono pezzi mancanti e c'è un'essenza secondaria, prova con quella
+      const mancanti = ris.righe.filter(r => r.mancanti > 0);
+      if (mancanti.length > 0 && N.sel.art2 && N.sel.art2 !== artPrimario) {
+        // Trova la variante corrispondente nell'essenza secondaria (stessa sezione)
+        if (!N.varianti[N.sel.art2]) await loadVarianti(N.sel.art2);
+        const varsSecondarie = N.varianti[N.sel.art2] || [];
+        const sezCorrente = sezLabel(v);
+        const varSec = varsSecondarie.find(vs => sezLabel(vs) === sezCorrente);
+
+        if (varSec) {
+          const mgvrSec = varSec.id;
+          const stockSec = (await loadStock(mgvrSec)).map(s => ({ mgvr: mgvrSec, lung: s.lung, pz: s.pz, alt: false }));
+          const stockSecUsabile = stockSec.filter(s => !N.esclusi.has(kEscl(s.mgvr, s.lung)));
+
+          // Righe da soddisfare con essenza secondaria (solo i mancanti)
+          const righeManc = mancanti.map(r => ({ key: r.keys?.[0] || r.lettera, lung: r.lung, pz: r.mancanti, lettera: r.lettera }));
+          const risSec = Ottimizzatore.ottimizza({ righe: righeManc, stock: stockSecUsabile, param });
+
+          if (risSec.totali.pezziOttenuti > 0) {
+            gruppiSecondari.push({ mgvr: mgvrSec, v: varSec, artId: N.sel.art2, ris: risSec, essenza: 'secondaria', sezLabel: sezCorrente });
+          }
+        }
+      }
     }
-    N.sol = { firma: firma(), gruppi };
+
+    N.sol = { firma: firma(), gruppi, gruppiSecondari };
     renderSol();
-  } catch (e) { toast('Elaborazione non riuscita: ' + e.message); }
+  } catch (e) { toast('Elaborazione non riuscita: ' + e.message); console.error(e); }
   b.disabled = false; b.textContent = 'Elabora';
 }
 function renderSol() {
@@ -483,7 +515,13 @@ function renderSol() {
   if (!box) return;
   if (!N.sol) { box.innerHTML = `<div class="empty">Compila la richiesta e premi Elabora: l'app propone da quali barre di magazzino tagliare ogni pezzo.</div>`; return; }
   const G = N.sol.gruppi;
-  const T = G.reduce((t, g) => { const x = g.ris.totali; t.barre += x.barre; t.usati += x.metriUsati; t.cons += x.metriConsegnati; t.rich += x.metriRichiesti; t.manc += x.pezziRichiesti - x.pezziOttenuti; t.fuori += x.barreFuoriSoglia; return t; }, { barre: 0, usati: 0, cons: 0, rich: 0, manc: 0, fuori: 0 });
+  const G2 = N.sol.gruppiSecondari || [];
+  const tutti = [...G, ...G2];
+  const T = tutti.reduce((t, g) => { const x = g.ris.totali; t.barre += x.barre; t.usati += x.metriUsati; t.cons += x.metriConsegnati; t.rich += x.metriRichiesti; t.fuori += x.barreFuoriSoglia; return t; }, { barre: 0, usati: 0, cons: 0, rich: 0, fuori: 0 });
+  // Mancanti: solo da essenza primaria (quelli non coperti nemmeno dalla secondaria)
+  const mancPrim = G.reduce((t, g) => t + g.ris.totali.pezziRichiesti - g.ris.totali.pezziOttenuti, 0);
+  const ottSec = G2.reduce((t, g) => t + g.ris.totali.pezziOttenuti, 0);
+  const manc = Math.max(0, mancPrim - ottSec);
   const stale = N.sol.firma !== firma();
   box.innerHTML = `
     ${stale ? '<div class="alert" style="margin:12px 14px 0">La richiesta è cambiata dopo l\'elaborazione: premi di nuovo Elabora.</div>' : ''}
@@ -492,10 +530,14 @@ function renderSol() {
       <div class="tot"><span>Metri prelevati</span><b>${num(T.usati, 2)}</b></div>
       <div class="tot"><span>Metri consegnati</span><b>${num(T.cons, 2)}</b></div>
       <div class="tot"><span>Sfrido</span><b>${num(T.usati - T.cons, 2)} m · ${num(T.usati ? (T.usati - T.cons) / T.usati * 100 : 0, 1)}%</b></div>
-      <div class="tot"><span>Pezzi mancanti</span><b class="${T.manc ? 'miss' : ''}">${T.manc}</b></div>
+      <div class="tot"><span>Pezzi mancanti</span><b class="${manc ? 'miss' : ''}">${manc}</b></div>
       ${T.fuori ? `<div class="tot"><span>Barre oltre soglia</span><b class="miss">${T.fuori}</b></div>` : ''}
+      ${G2.length ? `<div class="tot"><span>Da essenza secondaria</span><b>${ottSec} pz</b></div>` : ''}
     </div>
-    ${G.map(g => renderGruppo(g)).join('')}`;
+    ${G.length ? '<h4 style="margin:16px 14px 8px">Essenza principale</h4>' : ''}
+    ${G.map(g => renderGruppo(g)).join('')}
+    ${G2.length ? '<h4 style="margin:16px 14px 8px;color:#b45309">Essenza secondaria</h4>' : ''}
+    ${G2.map(g => renderGruppo(g)).join('')}`;
 }
 function renderGruppo(g) {
   const { ris, v } = g, a = v && artById(v.art);
@@ -568,72 +610,88 @@ function stampaReport() {
   const ordData = $('ordData').value ? new Date($('ordData').value).toLocaleDateString('it-IT') : oggi;
   const rif = [$('rif0').value, $('rif1').value, $('rif2').value].filter(Boolean).join(' · ');
 
-  // Raggruppa per sezione/profilo
-  const gruppiHtml = N.sol.gruppi.map(g => {
-    const v = varById(g.mgvr), a = v && artById(v.art);
-    const sez = sezLabel(v);
-    const profilo = a ? a.descr : '';
-    const ris = g.ris;
+  // Raggruppa per essenza (artId)
+  const tuttiGruppi = [...N.sol.gruppi, ...(N.sol.gruppiSecondari || [])];
+  const perEssenza = {};
+  for (const g of tuttiGruppi) {
+    const artId = g.artId || (g.v ? g.v.art : null) || 'unknown';
+    if (!perEssenza[artId]) perEssenza[artId] = [];
+    perEssenza[artId].push(g);
+  }
 
-    // Tabella Richiesto
-    const richiesteRows = ris.righe.map(r =>
-      `<tr><td>${esc(r.lettera)}</td><td class="n">${num(r.lung, 3)}</td><td class="n">${r.pz}</td><td class="n">${num(r.lung * r.pz, 2)}</td></tr>`
-    ).join('');
-    const totRichiesto = ris.righe.reduce((s, r) => s + r.lung * r.pz, 0);
+  // Genera un report per ogni essenza
+  const essenzeIds = Object.keys(perEssenza);
+  for (let idx = 0; idx < essenzeIds.length; idx++) {
+    const artId = essenzeIds[idx];
+    const gruppi = perEssenza[artId];
+    const art = artById(+artId);
+    const nomeEssenza = art ? art.descr : 'Essenza';
 
-    // Tabella Consegnato (barre usate)
-    const consegnatoRows = ris.barre.flatMap(b =>
-      b.schemi.map(sc => {
-        // Totale pezzi = pezzi per barra × numero barre
-        const compos = sc.pezzi.map(p => `${p.c * sc.n}${p.lettera}`).join('+');
-        const totBarra = b.lung * sc.n;
-        return `<tr>
-          <td class="n">${num(b.lung, 2)}</td>
-          <td class="n">${sc.n}</td>
-          <td class="n">${num(totBarra, 2)}</td>
-          <td class="n">${num(sc.sfrido, 3)}</td>
-          <td>${compos}</td>
-        </tr>`;
-      })
-    ).join('');
+    const gruppiHtml = gruppi.map(g => {
+      const v = g.v || varById(g.mgvr);
+      const sez = g.sezLabel || sezLabel(v);
+      const ris = g.ris;
 
-    return `
-      <div class="report-grp">
-        <h3>Sezione: ${esc(sez)} — ${esc(profilo)}</h3>
-        <div class="report-cols">
-          <div>
-            <div class="report-section">Richiesto</div>
-            <table class="report-tbl">
-              <thead><tr><th>Rif</th><th>Lung. m</th><th>Pz</th><th>Totale m</th></tr></thead>
-              <tbody>${richiesteRows}</tbody>
-              <tfoot><tr><td colspan="3">Totale</td><td class="n">${num(totRichiesto, 2)}</td></tr></tfoot>
-            </table>
+      // Tabella Richiesto
+      const richiesteRows = ris.righe.map(r =>
+        `<tr><td>${esc(r.lettera)}</td><td class="n">${num(r.lung, 3)}</td><td class="n">${r.pz}</td><td class="n">${num(r.lung * r.pz, 2)}</td></tr>`
+      ).join('');
+      const totRichiesto = ris.righe.reduce((s, r) => s + r.lung * r.pz, 0);
+
+      // Tabella Consegnato (barre usate)
+      const consegnatoRows = ris.barre.flatMap(b =>
+        b.schemi.map(sc => {
+          const compos = sc.pezzi.map(p => `${p.c * sc.n}${p.lettera}`).join('+');
+          const totBarra = b.lung * sc.n;
+          return `<tr>
+            <td class="n">${num(b.lung, 2)}</td>
+            <td class="n">${sc.n}</td>
+            <td class="n">${num(totBarra, 2)}</td>
+            <td class="n">${num(sc.sfrido, 3)}</td>
+            <td>${compos}</td>
+          </tr>`;
+        })
+      ).join('');
+
+      return `
+        <div class="report-grp">
+          <h3>Sezione: ${esc(sez)}</h3>
+          <div class="report-cols">
+            <div>
+              <div class="report-section">Richiesto</div>
+              <table class="report-tbl">
+                <thead><tr><th>Rif</th><th>Lung. m</th><th>Pz</th><th>Totale m</th></tr></thead>
+                <tbody>${richiesteRows}</tbody>
+                <tfoot><tr><td colspan="3">Totale</td><td class="n">${num(totRichiesto, 2)}</td></tr></tfoot>
+              </table>
+            </div>
+            <div>
+              <div class="report-section">Consegnato</div>
+              <table class="report-tbl">
+                <thead><tr><th>Barra m</th><th>Pz</th><th>Tot. m</th><th>Sfrido</th><th>Compos.</th></tr></thead>
+                <tbody>${consegnatoRows}</tbody>
+                <tfoot><tr><td colspan="2">Totale</td><td class="n">${num(ris.totali.metriUsati, 2)}</td><td class="n">${num(ris.totali.sfridoM, 2)}</td><td></td></tr></tfoot>
+              </table>
+            </div>
           </div>
-          <div>
-            <div class="report-section">Consegnato</div>
-            <table class="report-tbl">
-              <thead><tr><th>Barra m</th><th>Pz</th><th>Tot. m</th><th>Sfrido</th><th>Compos.</th></tr></thead>
-              <tbody>${consegnatoRows}</tbody>
-              <tfoot><tr><td colspan="2">Totale</td><td class="n">${num(ris.totali.metriUsati, 2)}</td><td class="n">${num(ris.totali.sfridoM, 2)}</td><td></td></tr></tfoot>
-            </table>
-          </div>
-        </div>
-      </div>`;
-  }).join('');
+        </div>`;
+    }).join('');
 
-  // Totali globali
-  const T = N.sol.gruppi.reduce((t, g) => {
-    const x = g.ris.totali;
-    t.barre += x.barre; t.usati += x.metriUsati; t.cons += x.metriConsegnati;
-    t.rich += x.metriRichiesti; t.sfrido += x.sfridoM;
-    return t;
-  }, { barre: 0, usati: 0, cons: 0, rich: 0, sfrido: 0 });
+    // Totali per questa essenza
+    const T = gruppi.reduce((t, g) => {
+      const x = g.ris.totali;
+      t.barre += x.barre; t.usati += x.metriUsati; t.cons += x.metriConsegnati;
+      t.rich += x.metriRichiesti; t.sfrido += x.sfridoM;
+      return t;
+    }, { barre: 0, usati: 0, cons: 0, rich: 0, sfrido: 0 });
 
-  const html = `<!DOCTYPE html>
+    const tipoEssenza = gruppi[0]?.essenza === 'secondaria' ? ' (Secondaria)' : '';
+
+    const html = `<!DOCTYPE html>
 <html lang="it">
 <head>
   <meta charset="utf-8">
-  <title>Report Ordine ${ordNum}/${ordAnno}</title>
+  <title>Report Ordine ${ordNum}/${ordAnno} - ${nomeEssenza}</title>
   <style>
     body { font-family: Arial, sans-serif; font-size: 11pt; color: #000; margin: 0; padding: 20px; }
     h1 { font-size: 16pt; margin: 0 0 4px; }
@@ -641,7 +699,7 @@ function stampaReport() {
     .report-head table { width: 100%; border-collapse: collapse; }
     .report-head td { padding: 2px 8px 2px 0; vertical-align: top; }
     .report-head .label { font-weight: bold; width: 100px; }
-    .report-essenza { font-size: 13pt; font-weight: bold; font-style: italic; margin: 16px 0 8px; }
+    .report-essenza { font-size: 14pt; font-weight: bold; font-style: italic; margin: 8px 0 16px; padding: 8px; background: #f0f0f0; border-left: 4px solid #333; }
     table.report-tbl { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 10pt; }
     table.report-tbl th, table.report-tbl td { border: 1px solid #999; padding: 4px 6px; }
     table.report-tbl th { background: #e8e8e8; font-weight: bold; text-align: left; }
@@ -661,8 +719,9 @@ function stampaReport() {
 </head>
 <body>
   <div class="no-print">
-    <button onclick="window.print()" style="padding:8px 16px;font-size:14px;cursor:pointer">🖨️ Stampa</button>
+    <button onclick="window.print()" style="padding:8px 16px;font-size:14px;cursor:pointer">Stampa</button>
     <button onclick="window.close()" style="padding:8px 16px;font-size:14px;cursor:pointer;margin-left:8px">Chiudi</button>
+    ${essenzeIds.length > 1 ? `<span style="margin-left:16px;color:#666">Report ${idx + 1} di ${essenzeIds.length}</span>` : ''}
   </div>
 
   <div class="report-head">
@@ -675,6 +734,8 @@ function stampaReport() {
       ${rif ? `<tr><td class="label">Riferimento:</td><td colspan="3">${esc(rif)}</td></tr>` : ''}
     </table>
   </div>
+
+  <div class="report-essenza">Essenza: ${esc(nomeEssenza)}${tipoEssenza}</div>
 
   ${gruppiHtml}
 
@@ -691,7 +752,12 @@ function stampaReport() {
 </body>
 </html>`;
 
-  const win = window.open('', '_blank', 'width=900,height=700');
-  win.document.write(html);
-  win.document.close();
+    const win = window.open('', '_blank', 'width=900,height=700');
+    win.document.write(html);
+    win.document.close();
+  }
+
+  if (essenzeIds.length > 1) {
+    toast(`Generati ${essenzeIds.length} report (uno per essenza)`);
+  }
 }
