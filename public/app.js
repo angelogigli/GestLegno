@@ -451,7 +451,7 @@ async function elabora() {
   if (!N.righe.length) { toast('Inserisci almeno una riga'); return; }
   const b = $('btnElabora'); b.disabled = true; b.textContent = 'Elaborazione…';
   try {
-    const param = parametri(), equiv = $('pEquiv').checked;
+    const param = parametri(), equiv = false; // mai usare sezioni equivalenti
     const by = {};
     N.righe.forEach(r => (by[r.mgvr] = by[r.mgvr] || []).push(r));
     const gruppi = [];
@@ -585,13 +585,14 @@ function stampaReport() {
     const consegnatoRows = ris.barre.flatMap(b =>
       b.schemi.map(sc => {
         const compos = sc.pezzi.map(p => `${p.c}${p.lettera}`).join('+');
+        const totPezzi = sc.pezzi.reduce((s, p) => s + p.c, 0);
         const totBarra = b.lung * sc.n;
         return `<tr>
           <td class="n">${num(b.lung, 2)}</td>
           <td class="n">${sc.n}</td>
           <td class="n">${num(totBarra, 2)}</td>
           <td class="n">${num(sc.sfrido, 3)}</td>
-          <td>${compos}${b.alt ? ' (eq.)' : ''}</td>
+          <td>${compos} = ${totPezzi} pz</td>
         </tr>`;
       })
     ).join('');
